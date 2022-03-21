@@ -11,7 +11,7 @@ import datetime
 import threading
 
 
-#TODO: add functionality for passing IP and port with cmd line args, for connecting as well as hosting
+#TODO: add functionality for passing IP and port with cmd line args, for connecting as well as hosting [DONE]       
 #TODO: multiple client support https://stackoverflow.com/a/61918942 [DONE]
 
 scope = "user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-playback-position streaming"
