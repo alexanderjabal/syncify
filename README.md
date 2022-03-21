@@ -18,3 +18,4 @@ You can connect to a session by using the `--connect <IP:port>` flag when runnin
 # TODO
 
 * .ini file with configuration options like port to listen on, etc.
+* Fix host mode keyboard interrupt not working, for now ctrl + break works
