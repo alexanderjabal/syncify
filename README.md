@@ -14,6 +14,12 @@ You can host a session by using the `--host` flag when running the script,  the 
 
 You can connect to a session by using the `--connect <IP:port>` flag when running the script. **Note:** connecting to a session outside the local network will not work if the host hasn't port forwarded the port that the server listens on (default 35484). 
 
+# Requirements
+
+* Python 3.6 or later
+* [Spotipy](https://github.com/plamere/spotipy)
+* [Requests](https://pypi.org/project/requests/)
+
 
 # TODO
 
