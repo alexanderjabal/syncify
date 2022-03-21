@@ -1,7 +1,7 @@
-import sys # for sys.exit
-import argparse # for cmd line args, like host mode
-import socket # server system
-import json # for serializing and deserializing data
+import sys
+import argparse
+import socket
+import json
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from pprint import pprint
@@ -12,50 +12,43 @@ import threading
 
 
 #TODO: add functionality for passing IP and port with cmd line args, for connecting as well as hosting
-#TODO: multiple client support https://stackoverflow.com/a/61918942
+#TODO: multiple client support https://stackoverflow.com/a/61918942 [DONE]
 
 scope = "user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-playback-position streaming"
-
-sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="952433cc2fe94c069626be1bf33cddea", client_secret="2519a53239ca4c339728a611c8e7059d", redirect_uri="http://localhost:8080/", scope=scope))
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="952433cc2fe94c069626be1bf33cddea", client_secret="", redirect_uri="http://localhost:8080/", scope=scope))
+refresh_rate = 0.5
 
 def handle_client(conn): # https://stackoverflow.com/a/61918942
     connected_users = []
     username = conn.recv(1024).decode()
     connected_users.append(username)
+    
     print(f"\r[!] {username} has connected to the session" + " " * 55)  
-
+    
     data_string = json.dumps(sp.current_playback()) # Playback data serialized
     conn.send(data_string.encode()) # Send playback data to client for initial sync on connect
-    # print("\nConnected users:\n")
+    
     print(f"\nConnected users: {', '.join(str(user) for user in connected_users)}", end="\r")
+    
     while True: # Keep sending playback data of the host so client can stay synced
         data_string = json.dumps(sp.current_playback()) # Playback data serialized
         try:
             conn.send(data_string.encode())
-            # print("Sent playback data to client") # debug
             desync_ms = conn.recv(1024).decode()
-            # print(desync_ms)
-             # https://stackoverflow.com/a/42757074
-            sleep(1)
+            sleep(refresh_rate)
             
                         
         except ConnectionAbortedError: # Remote client has aborted the connection
             print(f"\r[!] {username} has left the session", flush=True)
             connected_users.remove(username)
             if connected_users: # If there are still connected users after a client disconnects
-                print(f"\nConnected users: {', '.join(str(user) for user in connected_users)}", end="\r", flush=True) # https://stackoverflow.com/a/42757074
+                print(f"\nConnected users: {', '.join(str(user) for user in connected_users)}", end="\r") # https://stackoverflow.com/a/42757074
             else:
                 print("\nThis session is currently empty. Invite people by sharing the remote client connect address.", end="\r")
-            # print(f"{', '.join(str(user) for user in connected_users)}", end="\r", flush=True) # https://stackoverflow.com/a/42757074
-
             break
 
 
 def host_session():
-    # global connected_users
-    
-    # pprint(sp.current_playback());exit()
-    local_ip = "192.168.2.6"
     public_ip = requests.get("http://v4.ident.me").text
     port = 35484
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -66,11 +59,15 @@ def host_session():
 
         s.listen()
         while True:
-            conn, addr = s.accept()
-            threading.Thread(target=handle_client,args=(conn,), daemon=True).start() 
+            try:
+                conn, addr = s.accept()
+                threading.Thread(target=handle_client,args=(conn,), daemon=True).start() 
+            except KeyboardInterrupt:
+                print("Keyboard interrupt received, exiting." + " " * 40)
+                sys.exit()
 
 
-def connect(ip="84.87.107.139", port=35484):
+def connect(ip, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
             s.connect((ip, port))
@@ -121,7 +118,8 @@ def connect(ip="84.87.107.139", port=35484):
 
                 print(f"{track_progress(host_progress, track_duration)} {get_artists_and_name(playback_data)}", end="\r") # Currently playing track and its progress
 
-                sleep(1)
+                sleep(refresh_rate)
+
             except KeyboardInterrupt:
                 print("Keyboard interrupt received, exiting." + " " * 40)
                 sys.exit()
@@ -155,11 +153,7 @@ def track_progress(progress_ms, duration_ms):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Spotify sync listener")
     parser.add_argument("-H", "--host", action="store_true", help="Start the program in host mode")
-    # parser.add_argument("-C", "--connect", type=str, help="Host to connect to, specify IP address and port number seperated by a space")
-    parser.add_argument("-C", "--connect", action="store_true", help="Host to connect to, specify IP address and port number seperated by a colon") # temp version
-
-    # IP and port args too maybe?
-
+    parser.add_argument("-C", "--connect", type=str, help="Host to connect to, specify IP address and port number seperated by a colon, e.g. 192.168.1.1:4444")
     args = parser.parse_args()
 
     print("""
@@ -178,4 +172,5 @@ if __name__ == "__main__":
         host_session()
 
     if args.connect:
-        connect()
+        addr = args.connect.split(":")
+        connect(addr[0], int(addr[1]))
